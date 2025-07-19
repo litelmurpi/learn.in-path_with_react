@@ -1,11 +1,17 @@
-import { createContext, useContext, useState, useEffect } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import api from "../services/api";
 import toast from "react-hot-toast";
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -19,16 +25,42 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
+    const initAuth = () => {
+      try {
+        const token = localStorage.getItem("token");
+        const userData = localStorage.getItem("user");
 
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-    }
-    setLoading(false);
+        if (token && userData) {
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+
+          // Validate token dengan API
+          api
+            .get("/user")
+            .then((response) => {
+              if (response.data.id !== parsedUser.id) {
+                setUser(response.data);
+                localStorage.setItem("user", JSON.stringify(response.data));
+              }
+            })
+            .catch(() => {
+              // Token invalid
+              localStorage.removeItem("token");
+              localStorage.removeItem("user");
+              setUser(null);
+            });
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
   }, []);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     try {
       const response = await api.post("/login", { email, password });
       const { user, token } = response.data;
@@ -44,32 +76,35 @@ export const AuthProvider = ({ children }) => {
       toast.error(message);
       return { success: false, error: message };
     }
-  };
+  }, []);
 
-  const register = async (name, email, password, password_confirmation) => {
-    try {
-      const response = await api.post("/register", {
-        name,
-        email,
-        password,
-        password_confirmation,
-      });
-      const { user, token } = response.data;
+  const register = useCallback(
+    async (name, email, password, password_confirmation) => {
+      try {
+        const response = await api.post("/register", {
+          name,
+          email,
+          password,
+          password_confirmation,
+        });
+        const { user, token } = response.data;
 
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-      setUser(user);
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+        setUser(user);
 
-      toast.success("Registration successful!");
-      return { success: true };
-    } catch (error) {
-      const message = error.response?.data?.message || "Registration failed";
-      toast.error(message);
-      return { success: false, error: message };
-    }
-  };
+        toast.success("Registration successful!");
+        return { success: true };
+      } catch (error) {
+        const message = error.response?.data?.message || "Registration failed";
+        toast.error(message);
+        return { success: false, error: message };
+      }
+    },
+    []
+  );
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await api.post("/logout");
     } catch (error) {
@@ -80,15 +115,18 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       toast.success("Logged out successfully");
     }
-  };
+  }, []);
 
-  const value = {
-    user,
-    login,
-    register,
-    logout,
-    loading,
-  };
+  const value = useMemo(
+    () => ({
+      user,
+      login,
+      register,
+      logout,
+      loading,
+    }),
+    [user, login, register, logout, loading]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

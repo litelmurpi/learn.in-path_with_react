@@ -1,34 +1,107 @@
-import { useEffect, useState } from "react";
+import { memo, useMemo } from "react";
 import { Link } from "react-router-dom";
-import api from "../services/api";
 import Layout from "../components/Layout";
 import Heatmap from "../components/Heatmap";
-import { format } from "date-fns";
+import { formatDate, formatMinutesToHours } from "../utils/formatters";
+import { useFetch } from "../hooks/useFetch";
+
+// Memoized stat card component
+const StatCard = memo(({ stat }) => (
+  <div className="stat-card group">
+    <div className="absolute top-0 right-0 p-4 text-4xl opacity-10 group-hover:opacity-20 transition-opacity">
+      {stat.icon}
+    </div>
+    <div className="relative z-10">
+      <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+        {stat.title}
+      </h3>
+      <div className="flex items-baseline space-x-2">
+        <p
+          className={`text-4xl font-bold bg-gradient-to-r ${stat.gradient} ${stat.darkGradient} bg-clip-text text-transparent`}
+        >
+          {stat.value}
+        </p>
+        <span className="text-lg text-gray-500 dark:text-gray-400">
+          {stat.unit}
+        </span>
+      </div>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+        {stat.subtitle}
+      </p>
+    </div>
+  </div>
+));
+
+StatCard.displayName = "StatCard";
+
+// Memoized activity item component
+const ActivityItem = memo(({ activity }) => (
+  <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group">
+    <div className="flex items-center space-x-4">
+      <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex items-center justify-center text-2xl">
+        📚
+      </div>
+      <div>
+        <h4 className="font-medium text-gray-900 dark:text-white">
+          {activity.topic}
+        </h4>
+        <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+          <span>{formatDate(activity.study_date)}</span>
+          <span>•</span>
+          <span>{formatMinutesToHours(activity.duration_minutes)}</span>
+        </div>
+      </div>
+    </div>
+    <Link
+      to={`/study-logs/${activity.id}/edit`}
+      className="opacity-0 group-hover:opacity-100 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium transition-opacity"
+    >
+      Edit →
+    </Link>
+  </div>
+));
+
+ActivityItem.displayName = "ActivityItem";
 
 const Dashboard = () => {
-  const [stats, setStats] = useState(null);
-  const [heatmapData, setHeatmapData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: stats, loading: statsLoading } = useFetch("/dashboard/stats");
+  const { data: heatmapData, loading: heatmapLoading } =
+    useFetch("/dashboard/heatmap");
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  const loading = statsLoading || heatmapLoading;
 
-  const fetchDashboardData = async () => {
-    try {
-      const [statsRes, heatmapRes] = await Promise.all([
-        api.get("/dashboard/stats"),
-        api.get("/dashboard/heatmap"),
-      ]);
-
-      setStats(statsRes.data);
-      setHeatmapData(heatmapRes.data);
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const statCards = useMemo(
+    () => [
+      {
+        title: "Current Streak",
+        value: `${stats?.current_streak || 0}`,
+        unit: "days",
+        subtitle: "Keep it up! 🔥",
+        gradient: "from-orange-400 to-red-500",
+        darkGradient: "dark:from-orange-600 dark:to-red-600",
+        icon: "🔥",
+      },
+      {
+        title: "Today's Study Time",
+        value: `${stats?.today_hours || 0}`,
+        unit: "hours",
+        subtitle: "Great progress!",
+        gradient: "from-blue-400 to-indigo-500",
+        darkGradient: "dark:from-blue-600 dark:to-indigo-600",
+        icon: "📖",
+      },
+      {
+        title: "Total Study Time",
+        value: `${stats?.total_hours || 0}`,
+        unit: "hours",
+        subtitle: "Lifetime achievement",
+        gradient: "from-emerald-400 to-teal-500",
+        darkGradient: "dark:from-emerald-600 dark:to-teal-600",
+        icon: "🏆",
+      },
+    ],
+    [stats]
+  );
 
   if (loading) {
     return (
@@ -40,36 +113,6 @@ const Dashboard = () => {
     );
   }
 
-  const statCards = [
-    {
-      title: "Current Streak",
-      value: `${stats?.current_streak || 0}`,
-      unit: "days",
-      subtitle: "Keep it up! 🔥",
-      gradient: "from-orange-400 to-red-500",
-      darkGradient: "dark:from-orange-600 dark:to-red-600",
-      icon: "🔥",
-    },
-    {
-      title: "Today's Study Time",
-      value: `${stats?.today_hours || 0}`,
-      unit: "hours",
-      subtitle: "Great progress!",
-      gradient: "from-blue-400 to-indigo-500",
-      darkGradient: "dark:from-blue-600 dark:to-indigo-600",
-      icon: "📖",
-    },
-    {
-      title: "Total Study Time",
-      value: `${stats?.total_hours || 0}`,
-      unit: "hours",
-      subtitle: "Lifetime achievement",
-      gradient: "from-emerald-400 to-teal-500",
-      darkGradient: "dark:from-emerald-600 dark:to-teal-600",
-      icon: "🏆",
-    },
-  ];
-
   return (
     <Layout>
       <div className="space-y-8">
@@ -80,7 +123,7 @@ const Dashboard = () => {
               Welcome back, {stats?.user_name || "Learner"}! 👋
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              {format(new Date(), "EEEE, MMMM d, yyyy")}
+              {formatDate(new Date(), "EEEE, MMMM d, yyyy")}
             </p>
           </div>
           <Link to="/study-logs/new" className="btn-primary">
@@ -91,29 +134,7 @@ const Dashboard = () => {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {statCards.map((stat, index) => (
-            <div key={index} className="stat-card group">
-              <div className="absolute top-0 right-0 p-4 text-4xl opacity-10 group-hover:opacity-20 transition-opacity">
-                {stat.icon}
-              </div>
-              <div className="relative z-10">
-                <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                  {stat.title}
-                </h3>
-                <div className="flex items-baseline space-x-2">
-                  <p
-                    className={`text-4xl font-bold bg-gradient-to-r ${stat.gradient} ${stat.darkGradient} bg-clip-text text-transparent`}
-                  >
-                    {stat.value}
-                  </p>
-                  <span className="text-lg text-gray-500 dark:text-gray-400">
-                    {stat.unit}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  {stat.subtitle}
-                </p>
-              </div>
-            </div>
+            <StatCard key={index} stat={stat} />
           ))}
         </div>
 
@@ -127,7 +148,7 @@ const Dashboard = () => {
               Track your consistency
             </span>
           </div>
-          <Heatmap data={heatmapData} />
+          <Heatmap data={heatmapData || []} />
         </div>
 
         {/* Recent Activities */}
@@ -147,37 +168,7 @@ const Dashboard = () => {
           {stats?.recent_activities?.length > 0 ? (
             <div className="space-y-3">
               {stats.recent_activities.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex items-center justify-center text-2xl">
-                      📚
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white">
-                        {activity.topic}
-                      </h4>
-                      <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                        <span>
-                          {format(
-                            new Date(activity.study_date),
-                            "MMM dd, yyyy"
-                          )}
-                        </span>
-                        <span>•</span>
-                        <span>{activity.duration_minutes} minutes</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Link
-                    to={`/study-logs/${activity.id}/edit`}
-                    className="opacity-0 group-hover:opacity-100 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium transition-opacity"
-                  >
-                    Edit →
-                  </Link>
-                </div>
+                <ActivityItem key={activity.id} activity={activity} />
               ))}
             </div>
           ) : (
