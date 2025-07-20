@@ -26,7 +26,7 @@ class AnalyticsController extends Controller
 
     private function getOverview($user)
     {
-        $totalMinutes = StudyLog::where('user_id', $user->id)->sum('duration_minutes');
+        $totalMinutes = StudyLog::where('user_id', $user->id)->sum('duration_minutes') ?? 0;
         $totalDays = StudyLog::where('user_id', $user->id)->distinct('study_date')->count('study_date');
         $avgMinutesPerDay = $totalDays > 0 ? $totalMinutes / $totalDays : 0;
 
@@ -38,10 +38,10 @@ class AnalyticsController extends Controller
         $consistency = round(($last30Days / 30) * 100);
 
         return [
-            'total_hours' => round($totalMinutes / 60, 2),
-            'consistency_percentage' => $consistency,
-            'avg_hours_per_day' => round($avgMinutesPerDay / 60, 2),
-            'total_days' => $totalDays,
+            'total_hours' => round($totalMinutes / 60, 1), // 1 decimal place
+            'consistency_percentage' => intval($consistency), // Integer
+            'avg_hours_per_day' => round($avgMinutesPerDay / 60, 1), // 1 decimal place
+            'total_days' => intval($totalDays), // Integer
         ];
     }
 
@@ -62,7 +62,7 @@ class AnalyticsController extends Controller
 
             $chartData[] = [
                 'date' => $date->format('M d'),
-                'hours' => $dayData ? round($dayData->total_minutes / 60, 2) : 0,
+                'hours' => $dayData ? round($dayData->total_minutes / 60, 1) : 0, // 1 decimal
             ];
         }
 
@@ -81,7 +81,7 @@ class AnalyticsController extends Controller
         return $topics->map(function ($topic) {
             return [
                 'topic' => $topic->topic,
-                'hours' => round($topic->total_minutes / 60, 2),
+                'hours' => round($topic->total_minutes / 60, 1), // 1 decimal
             ];
         });
     }
@@ -89,6 +89,8 @@ class AnalyticsController extends Controller
     private function getWeeklyPattern($user)
     {
         $weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        // Use DAYOFWEEK for MySQL, adjust for your database if needed
         $data = StudyLog::where('user_id', $user->id)
             ->selectRaw('DAYOFWEEK(study_date) as day_of_week, AVG(duration_minutes) as avg_minutes')
             ->groupBy('day_of_week')
@@ -100,7 +102,7 @@ class AnalyticsController extends Controller
             $dayIndex = $i - 1;
             $pattern[] = [
                 'day' => $weekDays[$dayIndex],
-                'hours' => isset($data[$i]) ? round($data[$i]->avg_minutes / 60, 2) : 0,
+                'hours' => isset($data[$i]) ? round($data[$i]->avg_minutes / 60, 1) : 0, // 1 decimal
             ];
         }
 
@@ -109,13 +111,18 @@ class AnalyticsController extends Controller
 
     private function getHourlyPattern($user)
     {
-        // This would require a created_at time analysis
-        // For now, we'll return mock data
+        // Get actual hourly data from created_at timestamps
+        $hourlyData = StudyLog::where('user_id', $user->id)
+            ->selectRaw('HOUR(created_at) as hour, COUNT(*) as sessions')
+            ->groupBy('hour')
+            ->get()
+            ->keyBy('hour');
+
         $pattern = [];
         for ($hour = 0; $hour < 24; $hour++) {
             $pattern[] = [
                 'hour' => sprintf('%02d:00', $hour),
-                'sessions' => rand(0, 10), // Replace with actual data
+                'sessions' => isset($hourlyData[$hour]) ? intval($hourlyData[$hour]->sessions) : 0,
             ];
         }
 
@@ -134,15 +141,17 @@ class AnalyticsController extends Controller
             ->first();
 
         if ($mostProductiveDay) {
-            $insights[] = "Your most productive day is {$mostProductiveDay->day_name} with an average of " .
-                round($mostProductiveDay->avg_minutes / 60, 1) . " hours.";
+            $hours = round($mostProductiveDay->avg_minutes / 60, 1);
+            $insights[] = "Your most productive day is {$mostProductiveDay->day_name} with an average of {$hours} hours.";
         }
 
-        // Streak insight
-        if ($user->current_streak > 7) {
-            $insights[] = "Great job! You're on a {$user->current_streak}-day streak!";
-        } elseif ($user->current_streak > 0) {
-            $insights[] = "Keep it up! You've studied for {$user->current_streak} days in a row.";
+        // Current streak from dashboard controller
+        $currentStreak = $this->calculateCurrentStreak($user->id);
+
+        if ($currentStreak > 7) {
+            $insights[] = "Great job! You're on a {$currentStreak}-day streak!";
+        } elseif ($currentStreak > 0) {
+            $insights[] = "Keep it up! You've studied for {$currentStreak} days in a row.";
         }
 
         // Consistency insight
@@ -154,5 +163,32 @@ class AnalyticsController extends Controller
         }
 
         return $insights;
+    }
+
+    private function calculateCurrentStreak($userId)
+    {
+        $today = Carbon::today();
+        $streak = 0;
+        $currentDate = $today;
+
+        while (true) {
+            $hasStudied = StudyLog::where('user_id', $userId)
+                ->whereDate('study_date', $currentDate)
+                ->exists();
+
+            if (!$hasStudied) {
+                // If today hasn't been studied yet and streak is 0, check yesterday
+                if ($streak === 0 && $currentDate->isToday()) {
+                    $currentDate = $currentDate->subDay();
+                    continue;
+                }
+                break;
+            }
+
+            $streak++;
+            $currentDate = $currentDate->subDay();
+        }
+
+        return $streak;
     }
 }

@@ -1,7 +1,6 @@
 import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
+  createBrowserRouter,
+  RouterProvider,
   Navigate,
 } from "react-router-dom";
 import { Suspense, lazy } from "react";
@@ -24,87 +23,116 @@ const PageLoader = () => (
   </div>
 );
 
+// Create router with future flags
+const router = createBrowserRouter(
+  [
+    {
+      path: "/login",
+      element: (
+        <Suspense fallback={<PageLoader />}>
+          <Login />
+        </Suspense>
+      ),
+    },
+    {
+      path: "/register",
+      element: (
+        <Suspense fallback={<PageLoader />}>
+          <Register />
+        </Suspense>
+      ),
+    },
+    {
+      path: "/dashboard",
+      element: (
+        <Suspense fallback={<PageLoader />}>
+          <PrivateRoute>
+            <Dashboard />
+          </PrivateRoute>
+        </Suspense>
+      ),
+    },
+    {
+      path: "/study-logs",
+      element: (
+        <Suspense fallback={<PageLoader />}>
+          <PrivateRoute>
+            <StudyLogs />
+          </PrivateRoute>
+        </Suspense>
+      ),
+    },
+    {
+      path: "/study-logs/new",
+      element: (
+        <Suspense fallback={<PageLoader />}>
+          <PrivateRoute>
+            <StudyLogForm />
+          </PrivateRoute>
+        </Suspense>
+      ),
+    },
+    {
+      path: "/study-logs/:id/edit",
+      element: (
+        <Suspense fallback={<PageLoader />}>
+          <PrivateRoute>
+            <StudyLogForm />
+          </PrivateRoute>
+        </Suspense>
+      ),
+    },
+    {
+      path: "/analytics",
+      element: (
+        <Suspense fallback={<PageLoader />}>
+          <PrivateRoute>
+            <Analytics />
+          </PrivateRoute>
+        </Suspense>
+      ),
+    },
+    {
+      path: "/",
+      element: <Navigate to="/dashboard" replace />,
+    },
+  ],
+  {
+    future: {
+      v7_startTransition: true,
+      v7_relativeSplatPath: true,
+    },
+  }
+);
+
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Toaster
-          position="top-right"
-          toastOptions={{
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: "#363636",
+            color: "#fff",
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: "#10b981",
+              secondary: "#fff",
+            },
+          },
+          error: {
             duration: 4000,
-            style: {
-              background: "#363636",
-              color: "#fff",
+            iconTheme: {
+              primary: "#ef4444",
+              secondary: "#fff",
             },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: "#10b981",
-                secondary: "#fff",
-              },
-            },
-            error: {
-              duration: 4000,
-              iconTheme: {
-                primary: "#ef4444",
-                secondary: "#fff",
-              },
-            },
-          }}
-        />
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-
-            {/* Private Routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/study-logs"
-              element={
-                <PrivateRoute>
-                  <StudyLogs />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/study-logs/new"
-              element={
-                <PrivateRoute>
-                  <StudyLogForm />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/study-logs/:id/edit"
-              element={
-                <PrivateRoute>
-                  <StudyLogForm />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <PrivateRoute>
-                  <Analytics />
-                </PrivateRoute>
-              }
-            />
-
-            {/* Default Route */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </Suspense>
-      </Router>
+          },
+        }}
+      />
+      <RouterProvider router={router} />
     </AuthProvider>
   );
 }

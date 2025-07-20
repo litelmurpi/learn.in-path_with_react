@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\StudyLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -29,11 +30,24 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        // Calculate current streak properly
+        $currentStreak = $this->calculateCurrentStreak($user->id);
+
         return response()->json([
-            'current_streak' => $user->current_streak,
-            'today_hours' => round($todayMinutes / 60, 2),
-            'total_hours' => round($totalMinutes / 60, 2),
-            'recent_activities' => $recentActivities,
+            'user_name' => $user->name,
+            'current_streak' => $currentStreak,
+            'today_hours' => round($todayMinutes / 60, 1), // Always 1 decimal place
+            'total_hours' => round($totalMinutes / 60, 1), // Always 1 decimal place
+            'recent_activities' => $recentActivities->map(function ($activity) {
+                return [
+                    'id' => $activity->id,
+                    'topic' => $activity->topic,
+                    'study_date' => $activity->study_date->format('Y-m-d'),
+                    'duration_minutes' => $activity->duration_minutes,
+                    'notes' => $activity->notes,
+                    'created_at' => $activity->created_at,
+                ];
+            }),
         ]);
     }
 
@@ -45,8 +59,8 @@ class DashboardController extends Controller
 
         $studyLogs = StudyLog::where('user_id', $user->id)
             ->whereBetween('study_date', [$startDate, $endDate])
+            ->select('study_date', DB::raw('SUM(duration_minutes) as total_minutes'), DB::raw('COUNT(id) as sessions'))
             ->groupBy('study_date')
-            ->selectRaw('study_date, SUM(duration_minutes) as total_minutes')
             ->get()
             ->keyBy(function ($item) {
                 return $item->study_date->format('Y-m-d');
@@ -57,12 +71,15 @@ class DashboardController extends Controller
 
         while ($currentDate <= $endDate) {
             $dateStr = $currentDate->format('Y-m-d');
-            $minutes = isset($studyLogs[$dateStr]) ? $studyLogs[$dateStr]->total_minutes : 0;
+            $log = isset($studyLogs[$dateStr]) ? $studyLogs[$dateStr] : null;
+            $minutes = $log ? $log->total_minutes : 0;
+            $sessions = $log ? $log->sessions : 0;
 
             $heatmapData[] = [
                 'date' => $dateStr,
-                'count' => $minutes,
+                'count' => intval($minutes), // Ensure integer
                 'level' => $this->getIntensityLevel($minutes),
+                'sessions' => intval($sessions), // Ensure integer
             ];
 
             $currentDate->addDay();
@@ -73,10 +90,45 @@ class DashboardController extends Controller
 
     private function getIntensityLevel($minutes)
     {
-        if ($minutes === 0) return 0;
-        if ($minutes < 30) return 1;
-        if ($minutes < 60) return 2;
-        if ($minutes < 120) return 3;
-        return 4;
+        $hours = $minutes / 60;
+
+        if ($hours === 0) return 0;
+        if ($hours < 1) return 1;
+        if ($hours < 2) return 2;
+        if ($hours < 4) return 3;
+        if ($hours < 6) return 4;
+        return 5;
+    }
+
+    private function calculateCurrentStreak($userId)
+    {
+        $today = Carbon::today();
+        $streak = 0;
+
+        // Check if studied today
+        $studiedToday = StudyLog::where('user_id', $userId)
+            ->whereDate('study_date', $today)
+            ->exists();
+
+        // Start from today if studied, otherwise from yesterday
+        $checkDate = $studiedToday ? $today : $today->copy()->subDay();
+
+        while (true) {
+            $hasStudy = StudyLog::where('user_id', $userId)
+                ->whereDate('study_date', $checkDate)
+                ->exists();
+
+            if ($hasStudy) {
+                $streak++;
+                $checkDate->subDay();
+            } else {
+                break;
+            }
+
+            // Prevent infinite loop
+            if ($streak > 365) break;
+        }
+
+        return $streak;
     }
 }

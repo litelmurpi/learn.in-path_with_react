@@ -18,8 +18,25 @@ export const formatMinutesToHours = (minutes) => {
   return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 };
 
-export const formatHours = (minutes) => {
-  return (minutes / 60).toFixed(1);
+export const formatHours = (value) => {
+  const numValue = parseFloat(value);
+  if (isNaN(numValue)) return "0.0";
+  return numValue.toFixed(1);
+};
+
+export const formatLargeNumber = (value) => {
+  const numValue = parseFloat(value);
+  if (isNaN(numValue)) return "0";
+
+  if (numValue >= 1000000) {
+    return (numValue / 1000000).toFixed(1) + "M";
+  } else if (numValue >= 10000) {
+    return (numValue / 1000).toFixed(1) + "k";
+  } else if (numValue >= 1000) {
+    return Math.round(numValue).toLocaleString();
+  }
+
+  return numValue.toFixed(1);
 };
 
 export const formatRelativeTime = (date) => {
