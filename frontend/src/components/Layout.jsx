@@ -72,9 +72,9 @@ const Layout = ({ children }) => {
       {/* Navigation */}
       <nav className="bg-white dark:bg-gray-800 shadow-lg border-b border-gray-100 dark:border-gray-700 sticky top-0 z-50 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16">
+          <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex-shrink-0 mr-8">
+            <div className="flex-shrink-0">
               <Link to="/" className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg flex items-center justify-center text-white font-bold">
                   L
@@ -89,7 +89,7 @@ const Layout = ({ children }) => {
             <div className="flex-1 flex items-center justify-between">
               {/* Navigation Links */}
               {!isMobile && (
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-1 ml-8">
                   {NAV_LINKS.map((link) => (
                     <Link
                       key={link.path}
@@ -250,6 +250,7 @@ const Layout = ({ children }) => {
         {mobileMenuOpen && isMobile && (
           <div className="border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
             <div className="px-2 pt-2 pb-3 space-y-1">
+              {/* Navigation Links */}
               {NAV_LINKS.map((link) => (
                 <Link
                   key={link.path}
