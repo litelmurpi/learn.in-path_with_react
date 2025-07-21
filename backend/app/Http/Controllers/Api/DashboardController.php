@@ -33,11 +33,23 @@ class DashboardController extends Controller
         // Calculate current streak properly
         $currentStreak = $this->calculateCurrentStreak($user->id);
 
+        // Get gamification data
+        $userLevel = $user->userLevel;
+        $unclaimedAchievements = $user->achievements()
+            ->where('is_claimed', false)
+            ->count();
+
+        $todaysChallenges = $user->challenges()
+            ->where('challenge_date', $today)
+            ->where('is_completed', false)
+            ->count();
+
         return response()->json([
             'user_name' => $user->name,
             'current_streak' => $currentStreak,
-            'today_hours' => round($todayMinutes / 60, 1), // Always 1 decimal place
-            'total_hours' => round($totalMinutes / 60, 1), // Always 1 decimal place
+            'longest_streak' => $user->longest_streak,
+            'today_hours' => round($todayMinutes / 60, 1),
+            'total_hours' => round($totalMinutes / 60, 1),
             'recent_activities' => $recentActivities->map(function ($activity) {
                 return [
                     'id' => $activity->id,
@@ -48,6 +60,17 @@ class DashboardController extends Controller
                     'created_at' => $activity->created_at,
                 ];
             }),
+            'gamification' => [
+                'level' => $userLevel->current_level,
+                'level_name' => $userLevel->getLevelName(),
+                'current_xp' => $userLevel->current_xp,
+                'xp_for_next_level' => $userLevel->getXPForNextLevel(),
+                'progress_percentage' => $userLevel->getProgressPercentage(),
+                'total_xp' => $userLevel->total_xp,
+                'unclaimed_achievements' => $unclaimedAchievements,
+                'active_challenges' => $todaysChallenges,
+                'streak_freeze_available' => $userLevel->streak_freeze_available,
+            ],
         ]);
     }
 

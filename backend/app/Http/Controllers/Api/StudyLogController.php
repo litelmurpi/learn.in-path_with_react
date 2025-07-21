@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\StudyLog;
+use App\Services\AchievementService;
+use App\Services\ChallengeService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -11,6 +13,17 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 class StudyLogController extends Controller
 {
     use AuthorizesRequests;
+
+    protected $achievementService;
+    protected $challengeService;
+
+    public function __construct(
+        AchievementService $achievementService,
+        ChallengeService $challengeService
+    ) {
+        $this->achievementService = $achievementService;
+        $this->challengeService = $challengeService;
+    }
 
     public function index(Request $request)
     {
@@ -57,7 +70,56 @@ class StudyLogController extends Controller
             $request->user()->updateStreak();
         }
 
-        return response()->json($studyLog, 201);
+        // Update challenges progress
+        $this->challengeService->updateChallengeProgress(
+            $request->user(),
+            'study_minutes',
+            $request->duration_minutes
+        );
+
+        // Check if this is a new session today
+        $todaySessionsCount = StudyLog::where('user_id', $request->user()->id)
+            ->whereDate('study_date', Carbon::today())
+            ->count();
+
+        if ($todaySessionsCount == 1) {
+            $this->challengeService->updateChallengeProgress(
+                $request->user(),
+                'sessions_count',
+                1
+            );
+        }
+
+        // Check for unique topics today
+        $todayTopicsCount = StudyLog::where('user_id', $request->user()->id)
+            ->whereDate('study_date', Carbon::today())
+            ->distinct('topic')
+            ->count('topic');
+
+        $this->challengeService->updateChallengeProgress(
+            $request->user(),
+            'topics_count',
+            $todayTopicsCount
+        );
+
+        // Check for new achievements
+        $newAchievements = $this->achievementService->checkUserAchievements($request->user());
+
+        // Add XP for study session
+        $xpGained = min($request->duration_minutes, 120); // Max 120 XP per session
+        $request->user()->userLevel->addXP($xpGained);
+
+        return response()->json([
+            'study_log' => $studyLog,
+            'xp_gained' => $xpGained,
+            'new_achievements' => $newAchievements,
+            'user_level' => [
+                'level' => $request->user()->userLevel->current_level,
+                'xp' => $request->user()->userLevel->current_xp,
+                'total_xp' => $request->user()->userLevel->total_xp,
+                'progress' => $request->user()->userLevel->getProgressPercentage(),
+            ],
+        ], 201);
     }
 
     public function show(StudyLog $studyLog)

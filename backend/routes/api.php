@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\AchievementController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ChallengeController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\StudyLogController;
 use Illuminate\Support\Facades\Route;
@@ -31,4 +33,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Analytics
     Route::get('/analytics', [AnalyticsController::class, 'index']);
+
+    // Achievements
+    Route::get('/achievements', [AchievementController::class, 'index']);
+    Route::post('/achievements/{achievement}/claim', [AchievementController::class, 'claim']);
+    Route::get('/achievements/check', [AchievementController::class, 'checkNewAchievements']);
+
+    // Challenges
+    Route::get('/challenges', [ChallengeController::class, 'index']);
+    Route::get('/challenges/progress', [ChallengeController::class, 'progress']);
 });
