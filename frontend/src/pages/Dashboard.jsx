@@ -1,10 +1,16 @@
-import { memo, useMemo, useState, useCallback } from "react";
+import { memo, useMemo, useState, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import Layout from "../components/Layout";
 import Heatmap from "../components/Heatmap";
+import LevelProgress from "../components/LevelProgress";
+import StreakDisplay from "../components/StreakDisplay";
+import DailyChallenges from "../components/DailyChallenges";
+import LevelUpAnimation from "../components/LevelUpAnimation";
 import { formatDate, formatMinutesToHours } from "../utils/formatters";
 import { useFetch } from "../hooks/useFetch";
 import { useAuth } from "../contexts/AuthContext";
+import api from "../services/api";
 
 // Format large numbers
 const formatLargeNumber = (num) => {
@@ -153,17 +159,46 @@ const DailyGoalProgress = ({ todayHours, goalHours = 2 }) => {
 };
 
 const Dashboard = () => {
-  const user = useAuth().user;
-  const { data: stats, loading: statsLoading } = useFetch("/dashboard/stats");
+  const { user } = useAuth();
+  const {
+    data: stats,
+    loading: statsLoading,
+    refetch,
+  } = useFetch("/dashboard/stats");
   const { data: heatmapData, loading: heatmapLoading } =
     useFetch("/dashboard/heatmap");
   const [selectedDate, setSelectedDate] = useState(null);
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [previousLevel, setPreviousLevel] = useState(null);
 
   const loading = statsLoading || heatmapLoading;
+
+  // Check for level up
+  useEffect(() => {
+    if (
+      stats?.gamification?.level &&
+      previousLevel &&
+      stats.gamification.level > previousLevel
+    ) {
+      setShowLevelUp(true);
+    }
+    if (stats?.gamification?.level) {
+      setPreviousLevel(stats.gamification.level);
+    }
+  }, [stats?.gamification?.level, previousLevel]);
 
   const handleDateSelect = useCallback((day) => {
     setSelectedDate(day);
   }, []);
+
+  const handleStreakFreeze = async () => {
+    try {
+      await api.post("/user/streak-freeze");
+      refetch();
+    } catch (error) {
+      console.error("Error using streak freeze:", error);
+    }
+  };
 
   const statCards = useMemo(
     () => [
@@ -226,6 +261,8 @@ const Dashboard = () => {
     );
   }
 
+  const gamification = stats?.gamification || {};
+
   return (
     <Layout>
       <div className="space-y-6 sm:space-y-8">
@@ -252,12 +289,62 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Level Progress */}
+        {gamification.level && (
+          <LevelProgress
+            level={gamification.level}
+            levelName={gamification.level_name}
+            currentXP={gamification.current_xp}
+            xpForNextLevel={gamification.xp_for_next_level}
+            totalXP={gamification.total_xp}
+          />
+        )}
+
+        {/* Streak Display */}
+        <StreakDisplay
+          currentStreak={stats?.current_streak || 0}
+          longestStreak={stats?.longest_streak || 0}
+          freezeAvailable={gamification.streak_freeze_available || 0}
+          onFreeze={handleStreakFreeze}
+        />
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {statCards.map((stat, index) => (
             <StatCard key={index} stat={stat} />
           ))}
         </div>
+
+        {/* Daily Challenges */}
+        <DailyChallenges />
+
+        {/* Achievement Notification */}
+        {gamification.unclaimed_achievements > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-2 border-yellow-300 dark:border-yellow-700 rounded-xl p-4 flex items-center justify-between"
+          >
+            <div className="flex items-center space-x-3">
+              <span className="text-3xl">🎁</span>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  You have {gamification.unclaimed_achievements} unclaimed
+                  achievements!
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Claim them to earn XP and level up faster
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/achievements"
+              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-medium rounded-lg transition-colors"
+            >
+              View Achievements
+            </Link>
+          </motion.div>
+        )}
 
         {/* Enhanced Heatmap */}
         <div className="card">
@@ -316,6 +403,13 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Level Up Animation */}
+      <LevelUpAnimation
+        show={showLevelUp}
+        level={gamification.level}
+        onClose={() => setShowLevelUp(false)}
+      />
     </Layout>
   );
 };

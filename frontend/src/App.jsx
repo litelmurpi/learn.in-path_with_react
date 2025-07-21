@@ -15,6 +15,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const StudyLogs = lazy(() => import("./pages/StudyLogs"));
 const StudyLogForm = lazy(() => import("./pages/StudyLogForm"));
 const Analytics = lazy(() => import("./pages/Analytics"));
+const Achievements = lazy(() => import("./pages/Achievements"));
 
 // Loading component
 const PageLoader = () => (
@@ -23,87 +24,89 @@ const PageLoader = () => (
   </div>
 );
 
-// Create router with future flags
-const router = createBrowserRouter(
-  [
-    {
-      path: "/login",
-      element: (
-        <Suspense fallback={<PageLoader />}>
-          <Login />
-        </Suspense>
-      ),
-    },
-    {
-      path: "/register",
-      element: (
-        <Suspense fallback={<PageLoader />}>
-          <Register />
-        </Suspense>
-      ),
-    },
-    {
-      path: "/dashboard",
-      element: (
-        <Suspense fallback={<PageLoader />}>
-          <PrivateRoute>
-            <Dashboard />
-          </PrivateRoute>
-        </Suspense>
-      ),
-    },
-    {
-      path: "/study-logs",
-      element: (
-        <Suspense fallback={<PageLoader />}>
-          <PrivateRoute>
-            <StudyLogs />
-          </PrivateRoute>
-        </Suspense>
-      ),
-    },
-    {
-      path: "/study-logs/new",
-      element: (
-        <Suspense fallback={<PageLoader />}>
-          <PrivateRoute>
-            <StudyLogForm />
-          </PrivateRoute>
-        </Suspense>
-      ),
-    },
-    {
-      path: "/study-logs/:id/edit",
-      element: (
-        <Suspense fallback={<PageLoader />}>
-          <PrivateRoute>
-            <StudyLogForm />
-          </PrivateRoute>
-        </Suspense>
-      ),
-    },
-    {
-      path: "/analytics",
-      element: (
-        <Suspense fallback={<PageLoader />}>
-          <PrivateRoute>
-            <Analytics />
-          </PrivateRoute>
-        </Suspense>
-      ),
-    },
-    {
-      path: "/",
-      element: <Navigate to="/dashboard" replace />,
-    },
-  ],
+// Create router
+const router = createBrowserRouter([
   {
-    future: {
-      v7_startTransition: true,
-      v7_relativeSplatPath: true,
-    },
-  }
-);
+    path: "/login",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <Login />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/register",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <Register />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/dashboard",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <PrivateRoute>
+          <Dashboard />
+        </PrivateRoute>
+      </Suspense>
+    ),
+  },
+  {
+    path: "/study-logs",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <PrivateRoute>
+          <StudyLogs />
+        </PrivateRoute>
+      </Suspense>
+    ),
+  },
+  {
+    path: "/study-logs/new",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <PrivateRoute>
+          <StudyLogForm />
+        </PrivateRoute>
+      </Suspense>
+    ),
+  },
+  {
+    path: "/study-logs/:id/edit",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <PrivateRoute>
+          <StudyLogForm />
+        </PrivateRoute>
+      </Suspense>
+    ),
+  },
+  {
+    path: "/analytics",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <PrivateRoute>
+          <Analytics />
+        </PrivateRoute>
+      </Suspense>
+    ),
+  },
+  {
+    path: "/achievements",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <PrivateRoute>
+          <Achievements />
+        </PrivateRoute>
+      </Suspense>
+    ),
+  },
+  {
+    path: "/",
+    element: <Navigate to="/dashboard" replace />,
+  },
+]);
 
 function App() {
   return (

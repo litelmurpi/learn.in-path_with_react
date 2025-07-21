@@ -1,6 +1,7 @@
-/* eslint-disable no-unused-vars */
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import confetti from "canvas-confetti";
 import api from "../services/api";
 import Layout from "../components/Layout";
 import toast from "react-hot-toast";
@@ -39,6 +40,8 @@ const StudyLogForm = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showXPGained, setShowXPGained] = useState(false);
+  const [xpData, setXpData] = useState(null);
 
   // Debounce notes for auto-save draft
   const debouncedNotes = useDebounce(formData.notes, 1000);
@@ -150,15 +153,35 @@ const StudyLogForm = () => {
         duration_minutes: parseInt(formData.duration_minutes),
       };
 
+      let response;
       if (isEdit) {
-        await api.put(`/study-logs/${id}`, payload);
+        response = await api.put(`/study-logs/${id}`, payload);
         toast.success("Study log updated successfully");
+        navigate("/study-logs");
       } else {
-        await api.post("/study-logs", payload);
-        toast.success("Study log created successfully");
+        response = await api.post("/study-logs", payload);
+
+        // Show XP gained animation
+        if (response.data.xp_gained) {
+          setXpData(response.data);
+          setShowXPGained(true);
+
+          // Trigger confetti for achievements
+          if (response.data.new_achievements?.length > 0) {
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 },
+            });
+          }
+        }
+
         clearDraft();
+
+        setTimeout(() => {
+          navigate("/study-logs");
+        }, 2000); // Delay for animation
       }
-      navigate("/study-logs");
     } catch (error) {
       console.error("Error saving study log:", error);
       const message =
@@ -189,6 +212,63 @@ const StudyLogForm = () => {
 
   return (
     <Layout>
+      {/* XP Gained Animation */}
+      <AnimatePresence>
+        {showXPGained && xpData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0, y: 50 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0, y: -50 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 text-center max-w-sm mx-4"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1 }}
+                className="text-5xl mb-4"
+              >
+                ✨
+              </motion.div>
+
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                +{xpData.xp_gained} XP
+              </h3>
+
+              {xpData.new_achievements?.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    New Achievements Unlocked!
+                  </p>
+                  <div className="space-y-2">
+                    {xpData.new_achievements.map((achievement) => (
+                      <div
+                        key={achievement.id}
+                        className="flex items-center justify-center space-x-2 text-sm"
+                      >
+                        <span>{achievement.icon}</span>
+                        <span className="font-medium">{achievement.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {xpData.user_level && (
+                <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                  Level {xpData.user_level.level} • {xpData.user_level.progress}
+                  % to next level
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">

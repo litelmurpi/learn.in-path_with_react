@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\StudyLog;
+use App\Models\UserAchievement;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,8 +34,10 @@ class DashboardController extends Controller
         // Calculate current streak properly
         $currentStreak = $this->calculateCurrentStreak($user->id);
 
+        // Ensure user has level
+        $userLevel = $user->ensureUserLevel();
+
         // Get gamification data
-        $userLevel = $user->userLevel;
         $unclaimedAchievements = $user->achievements()
             ->where('is_claimed', false)
             ->count();
@@ -100,9 +103,9 @@ class DashboardController extends Controller
 
             $heatmapData[] = [
                 'date' => $dateStr,
-                'count' => intval($minutes), // Ensure integer
+                'count' => intval($minutes),
                 'level' => $this->getIntensityLevel($minutes),
-                'sessions' => intval($sessions), // Ensure integer
+                'sessions' => intval($sessions),
             ];
 
             $currentDate->addDay();

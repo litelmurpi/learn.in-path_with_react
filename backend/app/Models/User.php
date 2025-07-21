@@ -101,4 +101,18 @@ class User extends Authenticatable
         $this->last_study_date = $today;
         $this->save();
     }
+
+    // Helper method to ensure user has level
+    public function ensureUserLevel()
+    {
+        if (!$this->userLevel) {
+            $this->userLevel()->create([
+                'current_level' => 1,
+                'current_xp' => 0,
+                'total_xp' => 0,
+                'streak_freeze_available' => 2,
+            ]);
+        }
+        return $this->userLevel;
+    }
 }

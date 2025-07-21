@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { path: "/dashboard", label: "Dashboard", icon: "📊" },
   { path: "/study-logs", label: "Study Logs", icon: "📚" },
   { path: "/analytics", label: "Analytics", icon: "📈" },
+  { path: "/achievements", label: "Achievements", icon: "🏆" },
 ];
 
 const Layout = ({ children }) => {
@@ -45,6 +46,18 @@ const Layout = ({ children }) => {
     setMobileMenuOpen(false);
     setUserMenuOpen(false);
   }, [location.pathname]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [mobileMenuOpen]);
 
   const toggleDarkMode = useCallback(() => {
     setDarkMode((prev) => !prev);

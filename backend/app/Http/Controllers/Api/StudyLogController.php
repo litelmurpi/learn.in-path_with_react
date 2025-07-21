@@ -105,19 +105,22 @@ class StudyLogController extends Controller
         // Check for new achievements
         $newAchievements = $this->achievementService->checkUserAchievements($request->user());
 
+        // Ensure user has level before adding XP
+        $userLevel = $request->user()->ensureUserLevel();
+
         // Add XP for study session
         $xpGained = min($request->duration_minutes, 120); // Max 120 XP per session
-        $request->user()->userLevel->addXP($xpGained);
+        $userLevel->addXP($xpGained);
 
         return response()->json([
             'study_log' => $studyLog,
             'xp_gained' => $xpGained,
             'new_achievements' => $newAchievements,
             'user_level' => [
-                'level' => $request->user()->userLevel->current_level,
-                'xp' => $request->user()->userLevel->current_xp,
-                'total_xp' => $request->user()->userLevel->total_xp,
-                'progress' => $request->user()->userLevel->getProgressPercentage(),
+                'level' => $userLevel->current_level,
+                'xp' => $userLevel->current_xp,
+                'total_xp' => $userLevel->total_xp,
+                'progress' => $userLevel->getProgressPercentage(),
             ],
         ], 201);
     }
