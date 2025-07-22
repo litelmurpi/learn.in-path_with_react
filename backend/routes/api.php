@@ -43,3 +43,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/challenges', [ChallengeController::class, 'index']);
     Route::get('/challenges/progress', [ChallengeController::class, 'progress']);
 });
+
+Route::get('/debug/achievements', function () {
+    return response()->json([
+        'total_achievements' => \App\Models\Achievement::count(),
+        'active_achievements' => \App\Models\Achievement::where('is_active', true)->count(),
+        'all_achievements' => \App\Models\Achievement::all()
+    ]);
+});
